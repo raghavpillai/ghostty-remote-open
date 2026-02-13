@@ -1,0 +1,6 @@
+#!/bin/bash
+# Helper script invoked by ghostty-listener.
+# Opens an SSH session to the given host at the given directory.
+HOST="$1"
+DIR="$2"
+exec ssh -o ClearAllForwardings=yes "$HOST" -t "cd '$DIR' && exec \$SHELL -l"

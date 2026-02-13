@@ -1,0 +1,23 @@
+#!/bin/bash
+# Open a new Ghostty window on the local machine via reverse SSH tunnel.
+# Usage: ghostty [directory]  (defaults to current directory)
+#
+# Installed on the remote server. Requires:
+#   - ghostty-listener running on the local Mac
+#   - RemoteForward 7681 127.0.0.1:7681 in SSH config for this host
+#
+# GHOSTTY_SSH_HOST must be set to the SSH config alias for this server.
+# Set it in your shell config, e.g.: export GHOSTTY_SSH_HOST="zealot-server"
+
+dir="${1:-.}"
+dir=$(cd "$dir" 2>/dev/null && pwd) || { echo "ghostty: cannot access '$1'"; exit 1; }
+
+host="${GHOSTTY_SSH_HOST:-$(hostname)}"
+
+echo "${host}:${dir}" | nc -q0 127.0.0.1 7681 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "ghostty: could not connect to local listener on port 7681" >&2
+    echo "  Make sure ghostty-listener is running and SSH has RemoteForward 7681" >&2
+    exit 1
+fi
+echo "Opening Ghostty window at $dir"
