@@ -202,9 +202,12 @@ To add this to a different server (e.g. `gpu-server`):
 - Check that `ghostty-ssh-open` is executable: `chmod +x ~/.local/bin/ghostty-ssh-open`
 - Test it directly: `~/.local/bin/ghostty-ssh-open zealot-server /home/raghav`
 
-## Design decisions
+## Why it works this way
 
-- **Direct binary invocation** (`/Applications/Ghostty.app/Contents/MacOS/ghostty`) instead of `open -na Ghostty.app` — avoids macOS permission prompts on every launch.
-- **`ClearAllForwardings=yes`** on the helper SSH connection — prevents "remote port forwarding failed" warnings in new windows.
-- **Separate helper script** (`ghostty-ssh-open`) — avoids argument quoting issues when passing complex SSH commands through Ghostty's `--command` flag.
-- **Port 7681** — arbitrary choice, can be changed (update listener, SSH config, and remote script).
+Ghostty on macOS has no IPC for opening new windows programmatically (`+new-window` is Linux/GTK only). The workaround is to invoke the Ghostty binary directly at `/Applications/Ghostty.app/Contents/MacOS/ghostty` rather than using `open -na Ghostty.app`, which prompts for permission on every launch.
+
+The helper script (`ghostty-ssh-open`) exists because passing complex SSH commands with `&&` and `$SHELL` through Ghostty's `--command` flag causes argument quoting problems. Easier to just wrap it in a script.
+
+`ClearAllForwardings=yes` on the helper's SSH connection stops the "remote port forwarding failed" warning that would otherwise appear in every new window (since the original session already holds the tunnel).
+
+Port 7681 is arbitrary. Change it in the listener, SSH config, and remote script if it conflicts with something.
