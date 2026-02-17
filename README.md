@@ -5,13 +5,13 @@ Opens a new local Ghostty window from a remote SSH session, similar to `code .` 
 ## How it works
 
 ```
-You (SSH'd into zealot-server)
+You (SSH'd into my-server)
   │
   │  ghostty .
   │
   ▼
-~/.local/bin/ghostty (on zealot-server)
-  │  Sends "zealot-server:/current/dir" to localhost:7681
+~/.local/bin/ghostty (on my-server)
+  │  Sends "my-server:/current/dir" to localhost:7681
   │
   ▼
 SSH Reverse Tunnel (RemoteForward 7681)
@@ -22,16 +22,16 @@ SSH Reverse Tunnel (RemoteForward 7681)
   │  Receives request, launches Ghostty binary
   │
   ▼
-~/.local/bin/ghostty-ssh-open zealot-server /current/dir
-  │  exec ssh zealot-server -t "cd /current/dir && exec $SHELL -l"
+~/.local/bin/ghostty-ssh-open my-server /current/dir
+  │  exec ssh my-server -t "cd /current/dir && exec $SHELL -l"
   │
   ▼
-New Ghostty window opens, SSH'd to zealot-server at that directory
+New Ghostty window opens, SSH'd to my-server at that directory
 ```
 
 ## Usage
 
-From an SSH session on zealot-server:
+From an SSH session on your remote server:
 
 ```bash
 ghostty .           # new window at current directory
@@ -146,17 +146,16 @@ Launchd service that auto-starts `ghostty-listener` on login and keeps it runnin
 
 #### 4. `~/.ssh/config` (relevant addition)
 
-The `RemoteForward` line creates a reverse tunnel: anything connecting to port 7681 on zealot-server gets forwarded back to port 7681 on your Mac (where the listener is).
+The `RemoteForward` line creates a reverse tunnel: anything connecting to port 7681 on the remote server gets forwarded back to port 7681 on your Mac (where the listener is).
 
 ```
-Host zealot-server
-    HostName 192.168.91.106
-    User raghav
-    SetEnv TERM=xterm-256color
+Host my-server
+    HostName <ip-or-hostname>
+    User <username>
     RemoteForward 7681 127.0.0.1:7681
 ```
 
-### Remote server (zealot-server)
+### Remote server
 
 #### 5. `~/.local/bin/ghostty`
 
@@ -166,12 +165,16 @@ The command you actually type. Resolves the target directory to an absolute path
 #!/bin/bash
 # Open a new Ghostty window on the local machine via reverse SSH tunnel.
 # Usage: ghostty [directory]  (defaults to current directory)
+#
+# GHOSTTY_SSH_HOST must be set to the SSH config alias for this server.
+# Set it in your shell config, e.g.: export GHOSTTY_SSH_HOST="my-server"
 
 dir="${1:-.}"
 dir=$(cd "$dir" 2>/dev/null && pwd) || { echo "ghostty: cannot access '$1'"; exit 1; }
 
-# Send request through the SSH reverse tunnel
-echo "zealot-server:$dir" | nc -q0 127.0.0.1 7681 2>/dev/null
+host="${GHOSTTY_SSH_HOST:-$(hostname)}"
+
+echo "${host}:${dir}" | nc -q0 127.0.0.1 7681 2>/dev/null
 if [ $? -ne 0 ]; then
     echo "ghostty: could not connect to local listener on port 7681" >&2
     echo "  Make sure ghostty-listener is running and SSH has RemoteForward 7681" >&2
@@ -186,7 +189,7 @@ To add this to a different server (e.g. `gpu-server`):
 
 1. Add `RemoteForward 7681 127.0.0.1:7681` to that host in `~/.ssh/config`
 2. Copy the `ghostty` script to `~/.local/bin/ghostty` on the remote server
-3. Change `zealot-server` in the script to the SSH host alias (e.g. `gpu-server`)
+3. Set `export GHOSTTY_SSH_HOST="<ssh-alias>"` in the server's `.bashrc`
 
 ## Troubleshooting
 
@@ -200,7 +203,7 @@ To add this to a different server (e.g. `gpu-server`):
 
 **Window opens but doesn't connect**
 - Check that `ghostty-ssh-open` is executable: `chmod +x ~/.local/bin/ghostty-ssh-open`
-- Test it directly: `~/.local/bin/ghostty-ssh-open zealot-server /home/raghav`
+- Test it directly: `~/.local/bin/ghostty-ssh-open my-server /home/user`
 
 ## Why it works this way
 
